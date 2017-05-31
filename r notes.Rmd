@@ -1284,3 +1284,506 @@ df[1:2] %>% col_classes() %>% str()
 
 ```
 
+```{r data cleaning}
+
+# 1.Exploring Data
+#     a. Understand the structure of the data
+#     b. Look at the data
+#     c. Visualize the data
+
+# The first thing to do when you get your hands on a new dataset is to understand its structure. There are several ways to go about this in R, each of which may reveal different issues with your data that require attention.
+
+# You can check the class of any object in R with the class() function.
+
+# Once you know that you are dealing with tabular data, you may also want to get a quick feel for the contents of your data. Before printing the entire dataset to the console, it's probably worth knowing how many rows and columns there are. The dim() command tells you this.
+
+# the glimpse() function from dplyr is a slightly cleaner alternative to str(). str() and glimpse() give you a preview of your data, which may reveal issues with the way columns are labelled, how variables are encoded, etc.
+
+
+# 2. Tidying Data
+
+# The most important function in tidyr is gather(). It should be used when you have columns that are not variables and you want to collapse them into key-value pairs.
+
+# The easiest way to visualize the effect of gather() is that it makes wide datasets long. As you saw in the video, running the following command on wide_df will make it long:
+
+#gather(wide_df, my_key, my_val, -col)
+
+# Apply gather() to bmi and save the result as bmi_long
+bmi_long <- gather(bmi, year, bmi_val, -Country)
+
+# View the first 20 rows of the result
+head(bmi_long,20)
+
+
+# The opposite of gather() is spread(), which takes key-values pairs and spreads them across multiple columns. This is useful when values in a column should actually be column names (i.e. variables). It can also make data more compact and easier to read.
+
+# The easiest way to visualize the effect of spread() is that it makes long datasets wide. As you saw in the video, running the following command will make long_df wide:
+
+# spread(long_df, my_key, my_val)
+
+# Apply spread() to bmi_long
+bmi_wide <- spread(bmi_long, year, bmi_val)
+
+# View the head of bmi_wide
+head(bmi_wide)
+
+# The separate() function allows you to separate one column into multiple columns. Unless you tell it otherwise, it will attempt to separate on any character that is not a letter or number. You can also specify a specific separator using the sep argument.
+
+# Apply separate() to bmi_cc
+bmi_cc_clean <- separate(bmi_cc, col = Country_ISO, into = c("Country", "ISO"), sep = "/")
+
+# Print the head of the result
+head(bmi_cc_clean)
+
+# The opposite of separate() is unite(), which takes multiple columns and pastes them together. By default, the contents of the columns will be separated by underscores in the new column, but this behavior can be altered via the sep argument.
+
+# Apply unite() to bmi_cc_clean
+bmi_cc <- unite(bmi_cc_clean, Country_ISO, Country, ISO, sep = "-")
+
+# View the head of the result
+head(bmi_cc)
+
+
+## tidyr and dplyr are already loaded for you
+
+# View the head of census
+head(census)
+
+# Gather the month columns
+census2 <- gather(census,month,amount,-YEAR)
+
+# Arrange rows by YEAR using dplyr's arrange
+census2 <- arrange(census2, YEAR)
+
+# View first 20 rows of census2
+head(census2,20)
+
+## tidyr is already loaded for you
+
+# View first 50 rows of census_long
+head(census_long, n = 50)
+
+# Spread the type column
+census_long2 <- spread(census_long,type,amount)
+
+# View first 20 rows of census_long2
+head(census_long2, n = 20)
+
+
+# 3.Preparing Data for Analysis
+# Dates can be a challenge to work with in any programming language, but thanks to the lubridate package, working with dates in R isn't so bad. Since this course is about cleaning data, we only cover the most basic functions from lubridate to help us standardize the format of dates and times in our data.
+
+# these functions combine the letters y, m, d, h, m, s, which stand for year, month, day, hour, minute, and second, respectively. The order of the letters in the function should match the order of the date/time you are attempting to read in, although not all combinations are valid. Notice that the functions are "smart" in that they are capable of parsing multiple formats.
+
+
+# One common issue that comes up when cleaning data is the need to remove leading and/or trailing white space. The str_trim() function from stringr makes it easy to do this while leaving intact the part of the string that you actually want.
+
+# > str_trim("  this is a test     ")
+# [1] "this is a test"
+
+# A similar issue is when you need to pad strings to make them a certain number of characters wide. One example is if you had a bunch of employee ID numbers, some of which begin with one or more zeros. When reading these data in, you find that the leading zeros have been dropped somewhere along the way (probably because the variable was thought to be numeric and in that case, leading zeros would be unnecessary.)
+
+# > str_pad("24493", width = 7, side = "left", pad = "0")
+# [1] "0024493"
+
+# Load the stringr package
+library(stringr)
+
+# Trim all leading and trailing whitespace
+str_trim(c("   Filip ", "Nick  ", " Jonathan"))
+
+# Pad these strings with leading zeros
+str_pad(c("23485W", "8823453Q", "994Z"),width = 9, side = 'left',pad = '0')
+
+
+# The stringr package provides two functions that are very useful for finding and/or replacing strings: str_detect() and str_replace().
+
+# Like all functions in stringr, the first argument of each is the string of interest. The second argument of each is the pattern of interest. In the case of str_detect(), this is the pattern we are searching for. In the case of str_replace(), this is the pattern we want to replace. Finally, str_replace() has a third argument, which is the string to replace with.
+
+
+
+# As you've seen, missing values in R should be represented by NA, but unfortunately you will not always be so lucky. Before you can deal with missing values, you have to find them in the data.
+
+# If missing values are properly coded as NA, the is.na() function will help you find them. Otherwise, if your dataset is too big to just look at the whole thing, you may need to try searching for some of the usual suspects like "", "#N/A", etc. You can also use the summary() and table() functions to turn up unexpected values in your data.
+
+
+# Call is.na() on the full social_df to spot all NAs
+is.na(social_df)
+
+# Use the any() function to ask whether there are any NAs in the data
+any(is.na(social_df))
+
+# View a summary() of the dataset
+summary(social_df)
+
+# Call table() on the status column
+table(social_df$status)
+
+
+# Missing values can be a rather complex subject, but here we'll only look at the simple case where you are simply interested in normalizing and/or removing all missing values from your data. For more information on why this is not always the best strategy, search online for "missing not at random."
+
+
+## The stringr package is preloaded
+
+# Replace all empty strings in status with NA
+social_df$status[social_df$status == ''] <- NA
+
+# Print social_df to the console
+social_df
+
+# Use complete.cases() to see which rows have no missing values
+complete.cases(social_df)
+
+# Use na.omit() to remove all rows with any missing values
+na.omit(social_df)
+
+
+#When dealing with strange values in your data, you often must decide whether they are just extreme or actually erroneous. Extreme values show up all over the place, but you, the data analyst, must figure out when they are plausible and when they are not.
+
+
+# Look at a summary() of students3
+summary(students3)
+
+# View a histogram of the age variable
+hist(students3$age)
+
+# View a histogram of the absences variable
+hist(students3$absences)
+
+# View a histogram of absences, but force zeros to be bucketed to the right of zero
+hist(students3$absences, right = F)
+
+# View a boxplot of age
+boxplot(students3$age)
+
+# View a boxplot of absences
+boxplot(students3$absences)
+
+
+# 4. Summary
+# Verify that weather is a data.frame
+class(weather)
+
+# Check the dimensions
+dim(weather)
+
+# View the column names
+names(weather)
+
+
+# View the structure of the data
+str(weather)
+
+# Load dplyr package
+library(dplyr)
+
+# Look at the structure using dplyr's glimpse()
+glimpse(weather)
+
+# View a summary of the data
+summary(weather)
+
+# View first 6 rows
+head(weather)
+
+# View first 15 rows
+head(weather, n = 15)
+
+# View the last 6 rows
+tail(weather)
+
+# View the last 10 rows
+tail(weather, n = 10)
+
+# Load the tidyr package
+library(tidyr)
+
+# Gather the columns
+weather2 <- gather(weather, day, value, X1:X31, na.rm = TRUE)
+
+# View the head
+head(weather2)
+
+
+## The tidyr package is already loaded
+
+# First remove column of row names
+weather2 <- weather2[, -1]
+
+# Spread the data
+weather3 <- spread(weather2, measure, value)
+
+# View the head
+head(weather3)
+
+
+
+## tidyr and dplyr are already loaded
+
+# Load the stringr and lubridate packages
+library(stringr)
+library(lubridate)
+
+# Remove X's from day column
+weather3$day <- str_replace(weather3$day,'X','')
+
+# Unite the year, month, and day columns
+weather4 <- unite(weather3, date, year, month, day, sep = "-")
+
+# Convert date column to proper date format using lubridates's ymd()
+weather4$date <- ymd(weather4$date)
+
+# Rearrange columns using dplyr's select()
+weather5 <- select(weather4, date, Events, CloudCover:WindDirDegrees)
+
+# View the head of weather5
+head(weather5)
+
+## The dplyr and stringr packages are already loaded
+
+# Replace T with 0 (T = trace)
+weather5$PrecipitationIn <- str_replace(weather5$PrecipitationIn,'T','0')
+
+# Convert characters to numerics
+weather6 <- mutate_each(weather5, funs(as.numeric), CloudCover:WindDirDegrees)
+
+# Look at result
+str(weather6)
+
+# Count missing values
+sum(is.na(weather6))
+
+# Find missing values
+summary(weather6)
+
+# Find indices of NAs in Max.Gust.SpeedMPH
+ind <- which(is.na(weather6$Max.Gust.SpeedMPH))
+
+# Look at the full rows for records missing Max.Gust.SpeedMPH
+weather6[ind, ]
+
+# Review distributions for all variables
+summary(weather6)
+
+# Find row with Max.Humidity of 1000
+ind <- which(weather6$Max.Humidity == 1000)
+
+# Look at the data for that day
+weather6[ind, ]
+
+# Change 1000 to 100
+weather6$Max.Humidity[ind] <- 100
+
+
+# Look at summary of Mean.VisibilityMiles
+summary(weather6$Mean.VisibilityMiles)
+
+# Get index of row with -1 value
+ind <- which(weather6$Mean.VisibilityMiles == -1)
+
+# Look at full row
+weather6[ind,]
+
+# Set Mean.VisibilityMiles to the appropriate value
+weather6$Mean.VisibilityMiles[ind] <- 10
+
+# Review summary of full data once more
+summary(weather6)
+
+# Look at histogram for MeanDew.PointF
+hist(weather6$MeanDew.PointF)
+
+# Look at histogram for Min.TemperatureF
+hist(weather6$Min.TemperatureF)
+
+# Compare to histogram for Mean.TemperatureF
+hist(weather6$Mean.TemperatureF)
+
+
+# Clean up column names
+names(weather6) <- new_colnames
+
+# Replace empty cells in events column
+weather6$events[weather6$events == ""] <- "None"
+    
+# Print the first 6 rows of weather6
+head(weather6)
+
+
+```
+
+
+
+```{r machine learning toolbox}
+# diamonds dataset, which is a classic dataset from the ggplot2 package. The dataset contains physical attributes of diamonds as well as the price they sold for. One interesting modeling challenge is predicting diamond price based on their attributes using something like a linear regression.
+
+# Recall that to fit a linear regression, you use the lm() function in the following format:
+
+# mod <- lm(y ~ x, my_data)
+# To make predictions using mod on the original data, you call the predict() function:
+
+# pred <- predict(mod, my_data)
+
+# Fit lm model: model
+model <- lm(price ~ ., diamonds)
+
+# Predict on full data: p
+p <- predict(model, diamonds)
+
+# Compute errors: error
+error <- p - diamonds$price
+
+# Calculate RMSE
+sqrt(mean(error^2))
+
+
+# First, you set a random seed so that your work is reproducible and you get the same random split each time you run your script:
+
+# set.seed(42)
+# Next, you use the sample() function to shuffle the row indices of the diamonds dataset. You can later use these these indices to reorder the dataset.
+
+# rows <- sample(nrow(diamonds))
+# Finally, you can use this random vector to reorder the diamonds dataset:
+
+# diamonds <- diamonds[rows, ]
+
+# Set seed
+set.seed(42)
+
+# Shuffle row indices: rows
+rows <- sample(nrow(diamonds)) 
+
+# Randomly order data
+diamonds <- diamonds[rows,]
+
+
+
+# Now that your dataset is randomly ordered, you can split the first 80% of it into a training set, and the last 20% into a test set. You can do this by choosing a split point approximately 80% of the way through your data:
+
+# split <- round(nrow(mydata) * .80)
+# You can then use this point to break off the first 80% of the dataset as a training set:
+
+# mydata[1:split, ]
+# And then you can use that same point to determine the test set:
+
+# mydata[(split + 1):nrow(mydata), ]
+
+# Determine row to split on: split
+split <- round(nrow(diamonds) * 0.8)
+
+# Create train
+train <- diamonds[1:split,]
+
+# Create test
+test <- diamonds[(split + 1):nrow(diamonds),]
+
+# Fit lm model on train: model
+model <- lm(price ~ ., train)
+
+# Predict on test: p
+p <- predict(model,test)
+
+# Compute errors: error
+error <- p - test$price
+
+# Calculate RMSE
+sqrt(mean(error^2))
+
+# a better approach to validating models is to use multiple systematic test sets, rather than a single random train/test split. Fortunately, the caret package makes this very easy to do:
+
+# model <- train(y ~ ., my_data)
+# caret supports many types of cross-validation, and you can specify which type of cross-validation and the number of cross-validation folds with the trainControl() function, which you pass to the trControl argument in train():
+
+# model <- train(
+#   y ~ ., my_data,
+#   method = "lm",
+#   trControl = trainControl(
+#     method = "cv", number = 10,
+#     verboseIter = TRUE
+#   )
+# )
+
+
+# Fit lm model using 10-fold CV: model
+model <- train(
+  price ~ ., diamonds,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 10,
+    verboseIter = TRUE
+  )
+)
+
+# Print model to console
+model
+
+# Fit lm model using 5-fold CV: model
+model <- train(
+  medv ~ ., Boston,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE
+  )
+)
+
+# Print model to console
+model
+
+# You can do more than just one iteration of cross-validation. Repeated cross-validation gives you a better estimate of the test-set error. You can also repeat the entire cross-validation procedure. This takes longer, but gives you many more out-of-sample datasets to look at and much more precise assessments of how well the model performs.
+
+# One of the awesome things about the train() function in caret is how easy it is to run very different models or methods of cross-validation just by tweaking a few simple arguments to the function call. For example, you could repeat your entire cross-validation procedure 5 times for greater confidence in your estimates of the model's out-of-sample accuracy, e.g.:
+
+# trControl = trainControl(
+#   method = "cv", number = 5,
+#   repeats = 5, verboseIter = TRUE
+# )
+
+# Fit lm model using 5 x 5-fold CV: model
+model <- train(
+  medv ~ ., Boston,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 5,
+    repeats = 5, verboseIter = TRUE
+  )
+)
+
+# Print model to console
+model
+
+# Finally, the model you fit with the train() function has the exact same predict() interface as the linear regression models you fit earlier in this chapter.
+
+# After fitting a model with train(), you can simply call predict() with new data, e.g:
+
+# predict(my_model, new_data)
+
+# Predict on full Boston dataset
+predict(model,Boston)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
