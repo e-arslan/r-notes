@@ -1762,23 +1762,866 @@ model
 predict(model,Boston)
 
 
+# you can fit a logistic regression model to your training set using the glm() function. glm() is a more advanced version of lm() that allows for more varied types of regression models, aside from plain vanilla ordinary least squares regression.
+
+# Be sure to pass the argument family = "binomial" to glm() to specify that you want to do logistic (rather than linear) regression. For example:
+
+# glm(Target ~ ., family = "binomial", dataset)
+# Don't worry about warnings like glm.fit: algorithm did not converge or glm.fit: fitted probabilities numerically 0 or 1 occurred. These are common on smaller datasets and usually don't cause any issues. They typically mean your dataset is perfectly seperable, which can cause problems for the math behind the model, but R's glm() function is almost always robust enough to handle this case with no problems.
+
+# Once you have a glm() model fit to your dataset, you can predict the outcome (e.g. rock or mine) on the test set using the predict() function with the argument type = "response":
+
+# predict(my_model, test, type = "response")
+
+# Fit glm model: model
+model <- glm(Class ~ ., family = 'binomial', train)
+
+# Predict on test: p
+p <- predict(model, test, type = 'response')
+
+
+# a confusion matrix is a very useful tool for calibrating the output of a model and examining all possible outcomes of your predictions (true postive, true negative, false positive, false negative).
+
+# Before you make your confusion matrix, you need to "cut" your predicted probabilities at a given threshold to turn probabilities into class predictions. You can do this easily with the ifelse() function, e.g.:
+
+# class_prediction <-
+#   ifelse(probability_prediction > 0.50,
+#          "positive_class",
+#          "negative_class"
+#   )
+# You could make such a contingency table with the table() function in base R, but confusionMatrix() in caret yields a lot of useful ancillary statistics in addition to the base rates in the table. You can calculate the confusion matrix (and the associated statistics) using the predicted outcomes as well as the actual outcomes, e.g.:
+
+# confusionMatrix(predicted, actual)
+
+
+# Calculate class probabilities: p_class
+p_class <- ifelse(p > 0.50,'M','R')
+
+# Create confusion matrix
+confusionMatrix(p_class,test$Class)
+
+
+# Apply threshold of 0.9: p_class
+p_class <- ifelse(p>0.9, 'M','R')
+
+# Create confusion matrix
+confusionMatrix(p_class, test$Class)
+
+# an ROC curve is a really useful shortcut for summarizing the performance of a classifier over all possible thresholds. This saves you a lot of tedious work computing class predictions for many different thresholds and examining the confusion matrix for each.
+
+# My favorite package for computing ROC curves is caTools, which contains a function called colAUC(). This function is very user-friendly and can actually calculate ROC curves for multiple predictors at once. In this case, you only need to calculate the ROC curve for one predictor, e.g.:
+
+# colAUC(predicted_probabilities, actual, plotROC = TRUE)
+# The function will return a score called AUC (more on that later) and the plotROC = TRUE argument will return the plot of the ROC curve for visual inspection.
+
+
+# Predict on test: p
+p <- predict(model, test, type = 'response')
+
+# Make ROC curve
+colAUC(p, test$Class, plotROC = T)
+
+
+# area under the ROC curve is a very useful, single-number summary of a model's ability to discriminate the positive from the negative class (e.g. mines from rocks). An AUC of 0.5 is no better than random guessing, an AUC of 1.0 is a perfectly predictive model, and an AUC of 0.0 is perfectly anti-predictive (which rarely happens).
+
+# This is often a much more useful metric than simply ranking models by their accuracy at a set threshold, as different models might require different calibration steps (looking at a confusion matrix at each step) to find the optimal classification threshold for that model.
+
+# You can use the trainControl() function in caret to use AUC (instead of acccuracy), to tune the parameters of your models. The twoClassSummary() convenience function allows you to do this easily.
+
+# When using twoClassSummary(), be sure to always include the argument classProbs = TRUE or your model will throw an error! (You cannot calculate AUC with just class predictions. You need to have class probabilities as well.)
+
+
+# Create trainControl object: myControl
+myControl <- trainControl(
+  method = "cv",
+  number = 10,
+  summaryFunction = twoClassSummary,
+  classProbs = T, # IMPORTANT!
+  verboseIter = TRUE
+)
+
+
+# Now that you have a custom trainControl object, it's easy to fit caret models that use AUC rather than accuracy to tune and evaluate the model. You can just pass your custom trainControl object to the train() function via the trControl argument, e.g.:
+
+# train(<standard arguments here>, trControl = myControl)
+# This syntax gives you a convenient way to store a lot of custom modeling parameters and then use them across multiple different calls to train()
+
+# Train glm with custom trainControl: model
+model <- train(Class~., Sonar,trControl = myControl,method = 'glm')
+
+
+# Print model to console
+model
+
+# random forest models are much more flexible than linear models, and can model complicated nonlinear effects as well as automatically capture interactions between variables. They tend to give very good results on real world data, so let's try one out on the wine quality dataset, where the goal is to predict the human-evaluated quality of a batch of wine, given some of the machine-measured chemical and physical properties of that batch.
+
+# Fitting a random forest model is exactly the same as fitting a generalized linear regression model, as you did in the previous chapter. You simply change the method argument in the train function to be "ranger". The ranger package is a rewrite of R's classic randomForest package and fits models much faster, but gives almost exactly the same results. We suggest that all beginners use the ranger package for random forest modeling.
+
+# Fit random forest: model
+model <- train(
+  quality ~.,
+  tuneLength = 1,
+  data = wine, method = 'ranger',
+  trControl = trainControl(method = "cv", number = 5, verboseIter = TRUE)
+)
+
+# Print model to console
+model
+
+# random forest models have a primary tuning parameter of mtry, which controls how many variables are exposed to the splitting search routine at each split. For example, suppose that a tree has a total of 10 splits and mtry = 2. This means that there are 10 samples of 2 predictors each time a split is evaluated.
+
+# Use a larger tuning grid this time, but stick to the defaults provided by the train() function. Try a tuneLength of 3, rather than 1, to explore some more potential models, and plot the resulting model using the plot function.
+
+# Fit random forest: model
+model <- train(
+  quality ~ .,
+  tuneLength = 3,
+  data = wine, method = 'ranger',
+  trControl = trainControl(method = "cv", number = 5, verboseIter = TRUE)
+)
+
+# Print model to console
+model
+
+# Plot model
+plot(model)
+
+# Now that you've explored the default tuning grids provided by the train() function, let's customize your models a bit more.
+
+# You can provide any number of values for mtry, from 2 up to the number of columns in the dataset. In practice, there are diminishing returns for much larger values of mtry, so you will use a custom tuning grid that explores 2 simple models (mtry = 2 and mtry = 3) as well as one more complicated model (mtry = 7).
+
+
+# This is a simulated dataset based on the "don't overfit" competition on Kaggle a number of years ago.
+
+# Classification problems are a little more complicated than regression problems because you have to provide a custom summaryFunction to the train() function to use the AUC metric to rank your models. Start by making a custom trainControl, as you did in the previous chapter. Be sure to set classProbs = TRUE, otherwise the twoClassSummary for summaryFunction will break.
+
+# Create custom trainControl: myControl
+myControl <- trainControl(
+  method = "cv", number = 10,
+  summaryFunction = twoClassSummary,
+  classProbs = T, # IMPORTANT!
+  verboseIter = TRUE
+)
+
+
+# Now that you have a custom trainControl object, fit a glmnet model to the "don't overfit" dataset. Recall from the video that glmnet is an extention of the generalized linear regression model (or glm) that places constraints on the magnitude of the coefficients to prevent overfitting. This is more commonly known as "penalized" regression modeling and is a very useful technique on datasets with many predictors and few values.
+
+# glmnet is capable of fitting two different kinds of penalized models, controlled by the alpha parameter:
+
+# Ridge regression (or alpha = 0)
+# Lasso regression (or alpha = 1)
+# You'll now fit a glmnet model to the "don't overfit" dataset using the defaults provided by the caret package.
+
+# Fit glmnet model: model
+model <- train(
+  y ~ ., overfit,
+  method = "glmnet",
+  trControl = myControl
+)
+
+# Print model to console
+model
+
+# Print maximum ROC statistic
+max(model$results)
+
+# the glmnet model actually fits many models at once (one of the great things about the package). You can exploit this by passing a large number of lambda values, which control the amount of penalization in the model. train() is smart enough to only fit one model per alpha value and pass all of the lambda values at once for simultaneous fitting.
+
+# My favorite tuning grid for glmnet models is:
+
+#  expand.grid(alpha = 0:1,
+#  lambda = seq(0.0001, 1, length = 100))
+# This grid explores a large number of lambda values (100, in fact), from a very small one to a very large one. (You could increase the maximum lambda to 10, but in this exercise 1 is a good upper bound.)
+
+# If you want to explore fewer models, you can use a shorter lambda sequence. For example, lambda = seq(0.0001, 1, length = 10) would fit 10 models per value of alpha.
+
+# You also look at the two forms of penalized models with this tuneGrid: ridge regression and lasso regression. alpha = 0 is pure ridge regression, and alpha = 1 is pure lasso regression. You can fit a mixture of the two models (i.e. an elastic net) using an alpha between 0 and 1. For example, alpha = .05 would be 95% ridge regression and 5% lasso regression.
+
+# In this problem you'll just explore the 2 extremes--pure ridge and pure lasso regression--for the purpose of illustrating their differences.
+
+# Train glmnet with custom trainControl and tuning: model
+model <- train(
+  y ~ ., overfit,
+  tuneGrid = expand.grid(alpha = 0:1,
+  lambda = seq(0.0001, 1, length = 20)),
+  method = 'glmnet',
+  trControl = myControl
+)
+
+# Print model to console
+model
+
+# Print maximum ROC statistic
+max(model$resuts$ROC)
+
+# the train() function in caret contains an argument called preProcess, which allows you to specify that median imputation should be used to fill in the missing values. In previous chapters, you created models with the train() function using formulas such as y ~ .. An alternative way is to specify the x and y arguments to train(), where x is an object with samples in rows and features in columns and y is a numeric or factor vector containing the outcomes. Said differently, x is a matrix or data frame that contains the whole dataset you'd use for the data argument to the lm() call, for example, but excludes the response variable column; y is a vector that contains just the response variable column.
+
+# For this exercise, the argument x to train() is loaded in your workspace as breast_cancer_x and y as breast_cancer_y
+
+# Apply median imputation: model
+model <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = 'glm',
+  trControl = myControl,
+  preProcess = "medianImpute"
+)
+
+# Print model to console
+model
+
+
+# In the previous exercise, you used median imputation to fill in missing values in the breast cancer dataset, but that is not the only possible method for dealing with missing data.
+
+# An alternative to median imputation is k-nearest neighbors, or KNN, imputation. This is a more advanced form of imputation where missing values are replaced with values from other rows that are similar to the current row. While this is a lot more complicated to implement in practice than simple median imputation, it is very easy to explore in caret using the preProcess argument to train(). You can simply use preProcess = "knnImpute" to change the method of imputation used prior to model fitting.
+
+# Apply KNN imputation: model2
+model2 <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = 'glm',
+  trControl = myControl,
+  preProcess = "knnImpute"
+)
+
+# Print model to console
+model2
+
+#The preProcess argument to train() doesn't just limit you to imputing missing values. It also includes a wide variety of other preProcess techniques to make your life as a data scientist much easier. You can read a full list of them by typing ?preProcess and reading the help page for this function.
+
+#One set of preprocessing functions that is particularly useful for fitting regression models is standardization: centering and scaling. You first center by subtracting the mean of each column from each value in that column, then you scale by dividing by the standard deviation.
+
+#Standardization transforms your data such that for each column, the mean is 0 and the standard deviation is 1. This makes it easier for regression models to find a good solution.
+
+# Fit glm with median imputation: model1
+model1 <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = 'glm',
+  trControl = myControl,
+  preProcess = "medianImpute"
+)
+
+# Print model1
+model1
+
+# Fit glm with median imputation and standardization: model2
+model2 <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = 'glm',
+  trControl = myControl,
+  preProcess = c("medianImpute", "center", "scale")
+)
+
+# Print model2
+model2
+
+
+# it contains many variables and many of these variables have extemely low variances. This means that there is very little information in these variables because they mostly consist of a single value (e.g. zero).
+
+# Fortunately, caret contains a utility function called nearZeroVar() for removing such variables to save time during modeling.
+
+# nearZeroVar() takes in data x, then looks at the ratio of the most common value to the second most common value, freqCut, and the percentage of distinct values out of the number of total samples, uniqueCut. By default, caret uses freqCut = 19 and uniqueCut = 10, which is fairly conservative. I like to be a little more aggressive and use freqCut = 2 and uniqueCut = 20 when calling nearZeroVar().
+
+# Identify near zero variance predictors: remove_cols
+remove_cols <- nearZeroVar(bloodbrain_x, names = TRUE, 
+                           freqCut = 2, uniqueCut = 20)
+
+# Get all column names from bloodbrain_x: all_cols
+all_cols <- names(bloodbrain_x)
+
+# Remove from data: bloodbrain_x_small
+bloodbrain_x_small <- bloodbrain_x[ , setdiff(all_cols, remove_cols)]
+
+# Fit model on reduced data: model
+model <- train(x = bloodbrain_x_small, y = bloodbrain_y, method = "glm")
+
+# Print model to console
+model
+
+
+# An alternative to removing low-variance predictors is to run PCA on your dataset. This is sometimes preferable because it does not throw out all of your data: many different low variance predictors may end up combined into one high variance PCA variable, which might have a positive impact on your model's accuracy.
+
+# This is an especially good trick for linear models: the pca option in the preProcess argument will center and scale your data, combine low variance variables, and ensure that all of your predictors are orthogonal. This creates an ideal dataset for linear regression modeling, and can often improve the accuracy of your models.
+
+
+# Fit glm model using PCA: model
+model <- train(
+  x = bloodbrain_x, y = bloodbrain_y,
+  method = 'glm', preProcess = 'pca'
+)
+
+# Print model to console
+model
+
+# Create custom indices: myFolds
+myFolds <- createFolds(churn_y, k = 5)
+
+# Create reusable trainControl object: myControl
+myControl <- trainControl(
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE, # IMPORTANT!
+  verboseIter = TRUE,
+  savePredictions = TRUE,
+  index = myFolds
+)
+
+# Fit glmnet model: model_glmnet
+model_glmnet <- train(
+  x = churn_x, y = churn_y,
+  metric = "ROC",
+  method = 'glmnet',
+  trControl = myControl
+)
+
+# Fit random forest: model_rf
+model_rf <- train(
+  x = churn_x, y = churn_y,
+  metric = "ROC",
+  method = 'ranger',
+  trControl = myControl
+)
+
+
+
+# Create model_list
+model_list <- list(item1 = model_glmnet, item2 = model_rf)
+
+# Pass model_list to resamples(): 
+resamples <- resamples(model_list)
+
+# Summarize the results
+summary(resamples)
+
+# caret provides a variety of methods to use for comparing models. All of these methods are based on the resamples() function. My favorite is the box-and-whisker plot, which allows you to compare the distribution of predictive accuracy (in this case AUC) for the two models.
+
+# In general, you want the model with the higher median AUC, as well as a smaller range between min and max AUC.
+
+# You can make this plot using the bwplot() function, which makes a box and whisker plot of the model's out of sample scores. Box and whisker plots show the median of each distribution as a line and the interquartile range of each distribution as a box around the median line. You can pass the metric = "ROC" argument to the bwplot() function to show a plot of the model's out-of-sample ROC scores and choose the model with the highest median ROC.
+
+# If you do not specify a metric to plot, bwplot() will automatically plot 3 of them.
+
+# Create bwplot
+bwplot(resamples,metric = 'ROC')
+
+# Create xyplot
+xyplot(resamples, metric = 'ROC')
+
+# caretEnsemble provides the caretList() function for creating multiple caret models at once on the same dataset, using the same resampling folds. You can also create your own lists of caret models.
+
+# In this exercise, I've made a caretList for you, containing the glmnet and ranger models you fit on the churn dataset. Use the caretStack() function to make a stack of caret models, with the two sub-models (glmnet and ranger) feeding into another (hopefully more accurate!) caret model.
+
+# Create ensemble model: stack
+stack <- caretStack(model_list, method = 'glm')
+
+# Look at summary
+summary(stack)
 
 
 ```
 
 
 
+```{r dplyr}
+# Load the dplyr package
+library(dplyr)
+
+# Load the hflights package
+library(hflights)
+
+# Call both head() and summary() on hflights
+head(hflights)
+
+summary(hflights)
+
+# a tbl (pronounced tibble) is just a special kind of data.frame. They make your data easier to look at, but also easier to work with. On top of this, it is straightforward to derive a tbl from a data.frame structure using tbl_df().
+
+# The tbl format changes how R displays your data, but it does not change the data's underlying data structure. A tbl inherits the original class of its input, in this case, a data.frame. This means that you can still manipulate the tbl as if it were a data.frame. In other words, you can do anything with the hflights tbl that you could do with the hflights data.frame.
+
+# Both the dplyr and hflights packages are loaded
+
+# Convert the hflights data.frame into a hflights tbl
+hflights <- tbl_df(hflights)
+
+# Display the hflights tbl
+hflights
+
+# Create the object carriers
+carriers <- hflights$UniqueCarrier
+
+
+# A bit of cleaning would be a good idea since the UniqueCarrier variable of hflights uses a confusing code system.
+
+# To do this, let's work with a lookup table, that comes in the form of a named vector. When you subset the lookup table with a character string (like the character strings in UniqueCarrier), R will return the values of the lookup table that correspond to the names in the character string. To see how this works, run following code in the console:
+
+# two <- c("AA", "AS")
+# lut <- c("AA" = "American", 
+#          "AS" = "Alaska", 
+#          "B6" = "JetBlue")
+# two <- lut[two]
+# two
+
+# Both the dplyr and hflights packages are loaded into workspace
+lut <- c("AA" = "American", "AS" = "Alaska", "B6" = "JetBlue", "CO" = "Continental", 
+         "DL" = "Delta", "OO" = "SkyWest", "UA" = "United", "US" = "US_Airways", 
+         "WN" = "Southwest", "EV" = "Atlantic_Southeast", "F9" = "Frontier", 
+         "FL" = "AirTran", "MQ" = "American_Eagle", "XE" = "ExpressJet", "YV" = "Mesa")
+
+# Add the Carrier column to hflights
+hflights$Carrier <- lut[hflights$UniqueCarrier]
+
+# Glimpse at hflights
+glimpse(hflights)
+
+
+# The hflights tbl you built in the previous exercise is available in the workspace.
+
+# The lookup table
+lut <- c("A" = "carrier", "B" = "weather", "C" = "FFA", "D" = "security", "E" = "not cancelled")
+
+# Add the Code column
+hflights$Code <- lut[hflights$CancellationCode]
+
+# Glimpse at hflights
+glimpse(hflights)
+
+
+# The dplyr package contains five key data manipulation functions, also called verbs:
+
+# select(), which returns a subset of the columns,
+# filter(), that is able to return a subset of the rows,
+# arrange(), that reorders the rows according to single or multiple variables,
+# mutate(), used to add columns from existing data,
+# summarise(), which reduces each group to a single row by calculating aggregate measures.
+# If you want to find out more about these functions, consult the documentation by clicking on the functions above. What order of operations should we use to to find the average value of the ArrDelay (arrival delay) variable for all American Airline flights in the hflights tbl?
+
+# hflights is pre-loaded as a tbl, together with the necessary libraries.
+
+# Print out a tbl with the four columns of hflights related to delay
+select(hflights,ActualElapsedTime, AirTime, ArrDelay, DepDelay)
+
+# Print out the columns Origin up to Cancelled of hflights
+select(hflights,Origin:Cancelled)
+
+# Answer to last question: be concise!
+select(hflights,Year:DayOfWeek,ArrDelay:Diverted)
+
+
+# dplyr comes with a set of helper functions that can help you select groups of variables inside a select() call:
+
+# starts_with("X"): every name that starts with "X",
+# ends_with("X"): every name that ends with "X",
+# contains("X"): every name that contains "X",
+# matches("X"): every name that matches "X", where "X" can be a regular expression,
+# num_range("x", 1:5): the variables named x01, x02, x03, x04 and x05,
+# one_of(x): every name that appears in x, which should be a character vector.
+
+# As usual, hflights is pre-loaded as a tbl, together with the necessary libraries.
+
+# Print out a tbl containing just ArrDelay and DepDelay
+select(hflights,ends_with('Delay'))
+
+# Print out a tbl as described in the second instruction, using both helper functions and variable names
+select(hflights,UniqueCarrier,starts_with('Cancel'),ends_with('Num'))
+
+# Print out a tbl as described in the third instruction, using only helper functions.
+select(hflights,ends_with('Time'),ends_with('Delay'))
+
+
+# both hflights and dplyr are available
+
+# Finish select call so that ex1d matches ex1r
+ex1r <- hflights[c("TaxiIn", "TaxiOut", "Distance")]
+ex1d <- select(hflights,contains('Taxi'),Distance)
+
+# Finish select call so that ex2d matches ex2r
+ex2r <- hflights[c("Year", "Month", "DayOfWeek", "DepTime", "ArrTime")]
+ex2d <- select(hflights,Year:ArrTime,-DayofMonth)
+
+# Finish select call so that ex3d matches ex3r
+ex3r <- hflights[c("TailNum", "TaxiIn", "TaxiOut")]
+ex3d <- select(hflights,contains('Taxi'),TailNum)
+
+
+# mutate() is the second of five data manipulation functions you will get familiar with in this course. mutate() creates new columns which are added to a copy of the dataset.
+
+# Take this example that adds a new column, z, which is the element-wise sum of the columns x and y, to the data frame df:
+
+# mutate(df, z = x + y)
+
+# hflights and dplyr are loaded and ready to serve you.
+
+# Add the new variable ActualGroundTime to a copy of hflights and save the result as g1.
+g1 <- mutate(hflights, ActualGroundTime = ActualElapsedTime - AirTime)
+
+# Add the new variable GroundTime to g1. Save the result as g2.
+g2 <- mutate(g1, GroundTime = TaxiIn + TaxiOut)
+
+# Add the new variable AverageSpeed to g2. Save the result as g3.
+g3 <- mutate(g2, AverageSpeed = Distance / AirTime * 60)
+
+# Print out g3
+g3
+
+
+# To create more than one variable, place a comma between each variable that you define inside mutate().
+
+# mutate() even allows you to use a new variable while creating a next variable in the same call. In this example, the new variable x is directly reused to create the new variable y:
+
+# mutate(my_df, x = a + b, y = x + c)
+
+
+# hflights and dplyr are ready, are you?
+
+# Add a second variable loss_ratio to the dataset: m1
+m1 <- mutate(hflights, loss = ArrDelay - DepDelay, loss_ratio = loss / DepDelay)
+
+# Add the three variables as described in the third instruction: m2
+m2 <- mutate(hflights, TotalTaxi = TaxiIn + TaxiOut, ActualGroundTime = ActualElapsedTime - AirTime, Diff = TotalTaxi - ActualGroundTime)
+
+# hflights is at your disposal as a tbl, with clean carrier names
+
+# All flights that traveled 3000 miles or more
+filter(hflights,Distance > 3000)
+
+# All flights flown by one of JetBlue, Southwest, or Delta
+filter(hflights,UniqueCarrier %in% c('JetBlue','Southwest','Delta'))
+
+# All flights where taxiing took longer than flying
+filter(hflights,TaxiIn+TaxiOut > AirTime)
+
+
+
+# Instead of using the & operator, you can also pass several logical tests to filter(), separated by commas. The following two calls are completely equivalent:
+
+# filter(df, a > 0 & b > 0)
+# filter(df, a > 0, b > 0)
+# Next, is.na() will also come in handy. This example keeps the observations in df for which the variable x is not NA:
+
+# filter(df, !is.na(x))
+
+# hflights is at your service as a tbl!
+
+# All flights that departed before 5am or arrived after 10pm
+filter(hflights, DepTime < 500 | ArrTime > 2200)
+
+# All flights that departed late but arrived ahead of schedule
+filter(hflights, DepDelay > 0 & ArrDelay < 0)
+
+# All flights that were cancelled after being delayed
+filter(hflights,Cancelled == 1 & DepDelay >0)
+
+
+# hflights is already available in the workspace
+
+# Select the flights that had JFK as their destination: c1
+c1 <- filter(hflights,Dest == 'JFK')
+
+# Combine the Year, Month and DayofMonth variables to create a Date column: c2
+c2 <- mutate(c1, Date = paste(Year,Month,DayofMonth,sep='-'))
+
+# Print out a selection of columns of c2
+select(c2,Date,DepTime,ArrTime,TailNum)
+
+
+# arrange() can be used to rearrange rows according to any type of data. If you pass arrange() a character variable, for example, R will rearrange the rows in alphabetical order according to values of the variable. If you pass a factor variable, R will rearrange the rows according to the order of the levels in your factor (running levels() on the variable reveals this order).
+
+# dplyr and the hflights tbl are available
+
+# Definition of dtc
+dtc <- filter(hflights, Cancelled == 1, !is.na(DepDelay))
+
+# Arrange dtc by departure delays
+arrange(dtc,DepDelay)
+
+# Arrange dtc so that cancellation reasons are grouped
+arrange(dtc,CancellationCode)
+
+# Arrange dtc according to carrier and departure delays
+arrange(dtc,UniqueCarrier,DepDelay)
+
+
+# By default, arrange() arranges the rows from smallest to largest. Rows with the smallest value of the variable will appear at the top of the data set. You can reverse this behavior with the desc() function. arrange() will reorder the rows from largest to smallest values of a variable if you wrap the variable name in desc() before passing it to arrange().
+
+# dplyr and the hflights tbl are available
+
+# Arrange according to carrier and decreasing departure delays
+arrange(hflights,UniqueCarrier,desc(DepDelay))
+
+# Arrange flights by total delay (normal order).
+arrange(hflights,DepDelay + ArrDelay)
+
+
+# summarise(), the last of the 5 verbs, follows the same syntax as mutate(), but the resulting dataset consists of a single row instead of an entire new column in the case of mutate().
+
+# In contrast to the four other data manipulation functions, summarise() does not return an altered copy of the dataset it is summarizing; instead, it builds a new dataset that contains only the summarising statistics.
+
+# hflights and dplyr are loaded in the workspace
+
+# Print out a summary with variables min_dist and max_dist
+summarise(hflights,min_dist = min(Distance),max_dist = max(Distance))
+
+# Print out a summary with variable max_div
+summarise(filter(hflights,Diverted == 1),max_div = max(Distance))
+
+
+# hflights is available
+
+# Remove rows that have NA ArrDelay: temp1
+temp1 <- filter(hflights,!is.na(ArrDelay))
+
+# Generate summary about ArrDelay column of temp1
+summarise(temp1,earliest = min(ArrDelay),average = mean(ArrDelay),latest = max(ArrDelay), sd = sd(ArrDelay))
+
+# Keep rows that have no NA TaxiIn and no NA TaxiOut: temp2
+temp2 <- filter(hflights,!is.na(TaxiIn), !is.na(TaxiOut))
+
+# Print the maximum taxiing difference of temp2 with summarise()
+summarise(temp2,max_taxi_diff = max(abs(TaxiIn - TaxiOut)))
+
+
+# dplyr provides several helpful aggregate functions of its own, in addition to the ones that are already defined in R. These include:
+
+# first(x) - The first element of vector x.
+# last(x) - The last element of vector x.
+# nth(x, n) - The nth element of vector x.
+# n() - The number of rows in the data.frame or group of observations that summarise() describes.
+# n_distinct(x) - The number of unique values in vector x.
+
+
+# hflights is available with full names for the carriers
+
+# Generate summarizing statistics for hflights
+summarise(hflights,
+          n_obs = n(),
+          n_carrier = n_distinct(UniqueCarrier),
+          n_dest = n_distinct(Dest))
+
+# All American Airline flights
+aa <- filter(hflights, UniqueCarrier == "American")
+
+# Generate summarizing statistics for aa 
+summarise(aa,n_flights = n(), n_canc = sum(Cancelled == 1), avg_delay = mean(ArrDelay,na.rm = T))
+
+
+# As another example of the %>%, have a look at the following two commands that are completely equivalent:
+
+# mean(c(1, 2, 3, NA), na.rm = TRUE)
+# c(1, 2, 3, NA) %>% mean(na.rm = TRUE)
+# The %>% operator allows you to extract the first argument of a function from the arguments list and put it in front of it, thus solving the Dagwood sandwich problem.
+
+# hflights and dplyr are both loaded and ready to serve you
+
+# Write the 'piped' version of the English sentences.
+hflights %>% mutate(diff = TaxiOut - TaxiIn) %>% filter(!is.na(diff)) %>% summarise(avg = mean(diff))
+
+
+# Chain together mutate(), filter() and summarise()
+hflights %>% mutate(RealTime = ActualElapsedTime + 100, mph = Distance / RealTime * 60) %>% filter(!is.na(mph) & mph < 70) %>% summarise(n_less = n(), n_dest = n_distinct(Dest), min_dist = min(Distance), max_dist = max(Distance))
+
+
+# Finish the command with a filter() and summarise() call
+hflights %>%
+  mutate(RealTime = ActualElapsedTime + 100, mph = Distance / RealTime * 60) %>% filter(mph<=105 | Cancelled == 1 | Diverted == 1) %>% summarise(n_non = n(), n_dest = n_distinct(Dest), min_dist = min(Distance), max_dist = max(Distance))
+
+# hflights and dplyr are loaded
+
+# Count the number of overnight flights
+hflights %>% filter(!is.na(DepTime) & !is.na(ArrTime) & DepTime > ArrTime) %>% summarise(num = n())
+
+# group_by() lets you define groups within your data set. Its influence becomes clear when calling summarise() on a grouped dataset: summarising statistics are calculated for the different groups separately.
+
+
+# hflights is in the workspace as a tbl, with translated carrier names
+
+# Make an ordered per-carrier summary of hflights
+hflights %>%
+  group_by(UniqueCarrier) %>%
+  summarise(p_canc = mean(Cancelled == 1) * 100 ,
+            avg_delay = mean(ArrDelay, na.rm = T)) %>%
+  arrange(avg_delay, p_canc)
+
+
+# You can also combine group_by() with mutate(). When you mutate grouped data, mutate() will calculate the new variables independently for each group. This is particularly useful when mutate() uses the rank() function, that calculates within-group rankings. rank() takes a group of values and calculates the rank of each value within the group, e.g.
+
+# rank(c(21, 22, 24, 23))
+# has output
+
+# [1] 1 2 4 3
+
+
+# Ordered overview of average arrival delays per carrier
+hflights %>% filter(!is.na(ArrDelay) & ArrDelay > 0) %>% group_by(UniqueCarrier) %>% summarise(avg = mean(ArrDelay)) %>% mutate(rank = rank(avg)) %>% arrange(rank)
+
+
+# dplyr and hflights (with translated carrier names) are pre-loaded
+
+# How many airplanes only flew to one destination?
+hflights %>%
+  group_by(TailNum) %>%
+  summarise(dest = n_distinct(Dest)) %>%
+  filter(dest == 1) %>%
+  summarise(nplanes = sum(dest))
+
+# Find the most visited destination for each carrier
+hflights %>%
+  group_by(UniqueCarrier,Dest) %>%
+  summarise(n = n()) %>%
+  mutate(rank = rank(desc(n))) %>%
+  filter(rank == 1)
+
+
+# hflights2 is a copy of hflights that is saved as a data table. hflights2 was made available in the background using the following code:
+
+# library(data.table)
+# hflights2 <- as.data.table(hflights)
+
+# Use summarise to calculate n_carrier
+hflights2 %>% summarise(n_carrier = n_distinct(UniqueCarrier))
+
+
+# Although nycflights is a reference to data that lives outside of R, you can use the dplyr commands on them as usual. Behind the scenes, dplyr will convert the commands to the database's native language (in this case, SQL), and return the results. This allows you to pull data that is too large to fit in R: only the fraction of the data that you need will actually be downloaded into R, which will usually fit into R without memory issues.
+
+# Set up a connection to the mysql database
+my_db <- src_mysql(dbname = "dplyr", 
+                   host = "courses.csrrinzqubik.us-east-1.rds.amazonaws.com", 
+                   port = 3306, 
+                   user = "student",
+                   password = "datacamp")
+
+# Reference a table within that source: nycflights
+nycflights <- tbl(my_db, "dplyr")
+
+# glimpse at nycflights
+glimpse(nycflights)
+
+# Ordered, grouped summary of nycflights
+nycflights %>% group_by(carrier) %>% summarise(n_flights = n(),avg_delay = mean(arr_delay)) %>% arrange(avg_delay) 
+
+```
+
+
+```{r Introduction to Data}
+# Load data
+data(email50)
+
+# View its structure
+str(email50)
+
+# Subset of emails with big numbers: email50_big
+email50_big <- email50 %>%
+  filter(number == 'big')
+
+# Glimpse the subset
+glimpse(email50_big)
+
+# Table of number variable
+table(email50_big$number)
+
+# Drop levels
+email50_big$number <- droplevels(email50_big$number)
+
+# Another table of number variable
+table(email50_big$number)
+
+
+
+# Calculate median number of characters: med_num_char
+(med_num_char <- median(email50$num_char))
+
+# Create num_char_cat variable in email50
+email50 <- email50 %>%
+  mutate(num_char_cat = ifelse(num_char < med_num_char, 'below median', 'at or above median'))
+  
+# Count emails in each category
+table(email50$num_char_cat)
+
+
+# Create number_yn column in email50
+email50 <- email50 %>%
+  mutate(number_yn = ifelse(number == 'none','no','yes'))
+
+# Visualize number_yn
+ggplot(email50, aes(x = number_yn)) +
+  geom_bar()
+
+
+
+# Remember, an experiment requires random assignment.
+# Load data
+data(gapminder)
+
+# Glimpse data
+glimpse(gapminder)
+
+# Identify type of study
+type_of_study <- 'observational'
+
+
+# In order to calculate the number of males and females admitted, we will introduce two new functions: count() from the dplyr package and spread() from the tidyr package.
+
+# In one step, count() allows you to group the data by certain variables (in this case, admission status and gender) and then counts the number of observations in each category. These counts are available under a new variable called n.
+
+# spread() simply reorganizes the output across columns based on a key-value pair, where a pair contains a key that explains what the information describes and a value that contains the actual information. spread() takes the name of the dataset as its first argument, the name of the key column as its second argument, and the name of the value column as its third argument, all specified without quotation marks.
+
+
+library(dplyr)
+library(tidyr)
+
+# Count number of male and female applicants admitted
+ucb_counts <- ucb_admit %>%
+  count(Gender, Admit)
+
+# View result
+ucb_counts
+  
+# Spread the output across columns
+ucb_counts %>%
+  spread(Admit, n)
+
+
+ucb_admit %>%
+  # Table of counts of admission status and gender
+  count(Gender,Admit) %>%
+  # Spread output across columns based on admission status
+ spread(Admit, n) %>%
+  # Create new variable
+  mutate(Perc_Admit = Admitted / (Admitted + Rejected))
+
+
+# Table of counts of admission status and gender for each department
+admit_by_dept <- ucb_admit %>%
+  count(Dept, Gender, Admit) %>%
+  spread(Admit, n)
+
+# View result
+admit_by_dept
+
+# Percentage of those admitted to each department
+admit_by_dept %>%
+  mutate(Perc_Admit = Admitted / (Admitted + Rejected))
+
+
+# Simple random sample: states_srs
+states_srs <- us_regions %>%
+  sample_n(size = 8)
+
+# Count states by region
+states_srs %>%
+  group_by(region) %>%
+  count()
+
+# Stratified sample
+states_str <- us_regions %>%
+  group_by(region) %>%
+  sample_n(size = 2)
+
+# Count states by region
+states_str %>%
+  group_by(region) %>%
+  count()
 
 
 
 
-
-
-
-
-
-
-
+```
 
 
 
