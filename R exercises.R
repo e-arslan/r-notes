@@ -35,6 +35,31 @@ lst <- list(
 sapply(lst, sum, na.rm = T)
 
 
+##############
+library(purrr)
+new_sqrt <- safely(sqrt)
+new_sqrt(c(16, 4, 25, 9))
 
+
+
+##############
+
+
+
+
+##############
+
+
+
+
+
+
+##############
+
+
+
+
+
+###############
 
 
