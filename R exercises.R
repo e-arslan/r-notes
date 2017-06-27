@@ -54,17 +54,48 @@ map(lst, toupper)
 
 ##############
 
-
+library(purrr)
+costs <- list(
+  c(item_a = 28, item_b = -35),
+  c(item_a = "-30", item_b = "37")
+)
+absolute_value <- safely(abs)
+map(costs, absolute_value)
 
 
 
 
 ##############
 
+sales <- list(
+  apr = c(6, 10, 4), 
+  may = c(15, 17, 11)
+)
+x <- vector("double", 2)
+for (i in seq_along(sales)) {
+  x[i] <- mean(sales[[i]])
+}
+x
+
+
+
+####################
 
 
 
 
-###############
 
+####################
+
+
+
+
+
+####################
+
+
+
+
+
+####################
 
