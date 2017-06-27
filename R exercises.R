@@ -44,7 +44,12 @@ new_sqrt(c(16, 4, 25, 9))
 
 ##############
 
-
+library(purrr)
+lst <- list(
+  x = c("january", "february"), 
+  y = c("september", "october")
+)
+map(lst, toupper)
 
 
 ##############
