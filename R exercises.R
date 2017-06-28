@@ -95,7 +95,11 @@ diff(as.POSIXct(x))
 
 ####################
 
-
+library(purrr)
+x1 <- c(11, 30, 4, 21)
+# Find the sum, mean, sd, and median of the vector x1
+f <- list("sum", "mean", "sd", "median")
+invoke_map(f, x = x1)
 
 
 
