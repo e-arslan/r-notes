@@ -163,7 +163,13 @@ map_chr(avengers, 2)
 
 #################
 
-
+library(purrr)
+costs <- list(
+  c(item_a = 28, item_b = -35),
+  c(item_a = "-24", item_b = "-28")
+)
+absolute_value <- safely(abs)
+map(costs,absolute_value)
 
 
 
