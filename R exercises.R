@@ -103,5 +103,86 @@ invoke_map(f, x = x1)
 
 
 
-####################
+#################
 
+# & and && indicate logical AND and | and || indicate logical OR. The shorter form performs
+# elementwise comparisons in much the same way as arithmetic operators. The longer form evaluates
+# left to right examining only the first element of each vector. Evaluation proceeds only until
+# the result is determined. The longer form is appropriate for programming control-flow and 
+# typically preferred in if clauses.
+
+x <- c(FALSE, FALSE, FALSE)
+y <- c(FALSE, TRUE, TRUE)
+x && y 
+
+x <- c(TRUE, FALSE, FALSE)
+y <- c(TRUE, TRUE, TRUE)
+x && y 
+
+#################
+avengers <- list(
+  list("phil coulson", "nick fury"), 
+  list("thor", "hulk")
+)
+
+map(avengers, 2)
+
+map_chr(avengers, 2)
+
+
+
+#################
+
+##       apply(X,MARGIN, FUN, ...)
+# X : Matrix
+# MARGIN : 1-> rows,  2-> columns  
+# FUN : 
+# Output : vector
+
+##      lapply
+# The difference : 
+#     - Dataframes, lists or vectors as input
+#     - The output returned is a list
+
+# Examples:
+
+# Extract the 2nd column from `MyList` with the selection operator `[` with `lapply()`
+#   lapply(MyList,"[", , 2)
+# Extract the 1st row from `MyList`
+#   lapply(MyList,"[", 1, )
+
+
+##      sapply
+# same as lapply returns vector instead of array
+# sapply(MyList,"[", 2, 1, simplify=F) = lapply(MyList,"[", 2, 1 )
+# sapply(MyList,"[", 2, 1, simplify=F) = unlist(lapply(MyList,"[", 2, 1 ))
+
+
+##      vapply
+
+
+#################
+
+
+
+
+
+
+################
+
+
+
+
+
+
+################
+
+
+
+
+###############
+
+
+
+
+###############
