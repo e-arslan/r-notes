@@ -176,7 +176,9 @@ map(costs,absolute_value)
 
 ################
 
-
+p <- list(1, 2:3)
+list(p, list(c(3, 5)))
+append(p, list(c(3, 5)))
 
 
 
