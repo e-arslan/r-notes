@@ -231,39 +231,57 @@ map_dbl(lst, min)
 
 ###############
 
+p <- as.Date("2014-03-21")
+format(p, "%B-%d")
+
+
+
+###############
+
+lst <- list(p = c(18, 11), q = c("Dec", "Nov"))
+vapply(lst, is.logical, logical(1))
+
+
+
+###############
+
+(function(x, y) { x * y })(2, 3)
+
+
+
+###############
+
+library(purrr)
+fruits <- list(
+  list(name = c("banana", "avacado"), stock = c(20, 10)), 
+  list(name = c("nut", "olive"), stock = c(90, 80))
+)
+fruits %>%
+  map("name") %>%
+  map_chr(1)
+
+
+
+###############
+
+library(purrr)
+costs <- list(
+  c(item_a = -25, item_b = 30),
+  c(item_a = "-24", item_b = "30")
+)
+absolute_value <- safely(abs)
+map(costs, absolute_value)
 
 
 
 
 ###############
 
-
-
-
-
-###############
-
-
-
-
-
-###############
-
-
-
-
-
-
-###############
-
-
-
-
-
-
-###############
-
-
+library(purrr)
+x1 <- c(10, 22, 20, 14)
+# Find the sum, mean, and median of the vector x1
+f <- list("sum", "mean", "sd", "median")
+invoke_map(f, x = x1)
 
 
 
