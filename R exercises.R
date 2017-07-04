@@ -287,33 +287,57 @@ invoke_map(f, x = x1)
 
 ###############
 
+products <- data.frame(
+  item = c("A", "B", "B", "A", "B"), 
+  cost = c(50, 46, 28, 38, 20), 
+  profit = c(15, 5, 10, 12, 5), 
+  sold_out = c(FALSE, TRUE, FALSE, FALSE, TRUE)
+)
+subset(products, item == "B")
+
+
+
+###############
+
+library(purrr)
+avg_temp <- data.frame(
+  year =  c(2016, 2016, 2015, 2015),
+  month = c("Jan", "Feb", "Jan", "Feb"), 
+  temp =  c(26, 30, 25, 28)
+)
+avg_temp %>%
+  split(.$year) %>%
+  map("temp")
 
 
 
 
 ###############
 
-
-
-
-
-
-###############
-
-
-
-
-
-
-###############
-
+library(purrr)
+df <- data.frame(
+  x = c(20, 10), 
+  y = c("olives", "nuts")
+)
+map_lgl(df, is.logical)
 
 
 
 
 ###############
 
+library(purrr)
+new_sqrt <- safely(sqrt)
+new_sqrt(c("16", "12", "4", "20"))
 
+
+
+###############
+
+library(purrr)
+lst1 <- list(month = c("May", "Mar"), day = c("Wed", "Mon"))
+lst2 <- list(month = c("Jul", "Aug"), day = c("Fri", "Sat"))
+map2(lst1, lst2, ~ c(.x, .y))
 
 
 
