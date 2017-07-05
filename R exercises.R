@@ -344,7 +344,13 @@ map2(lst1, lst2, ~ c(.x, .y))
 
 ###############
 
-
+library(purrr)
+df <- data.frame(
+  x = c(8, 5), 
+  y = c("P", "Q")
+)
+map(df, class)
+map_chr(df, class)
 
 
 
