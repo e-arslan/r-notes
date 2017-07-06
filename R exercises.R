@@ -357,7 +357,14 @@ map_chr(df, class)
 
 ###############
 
-
+library(purrr)
+fruits <- list(
+  list(name = c("apple", "apricot"), stock = c(30, 20)), 
+  list(name = c("date", "fig"), stock = c(55, 80))
+)
+fruits %>%
+  map("name") %>%
+  map_chr(1)
 
 
 
