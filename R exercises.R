@@ -370,7 +370,15 @@ fruits %>%
 
 ###############
 
-
+library(purrr)
+avg_temp <- data.frame(
+  year =  c(2015, 2015, 2014, 2014),
+  month = c("May", "Jun", "May", "Jun"), 
+  temp =  c(26, 30, 25, 28)
+)
+avg_temp %>%
+  split(.$year) %>%
+  map("temp")
 
 
 
