@@ -385,7 +385,8 @@ avg_temp %>%
 
 ###############
 
-
+random_words <- c("1..2a3bC", "15/2a_C", "v.a2/H")
+gsub(pattern = "[\\._/]", replacement = "0", x = random_words)
 
 
 
